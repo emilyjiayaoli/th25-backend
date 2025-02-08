@@ -16,6 +16,7 @@ from livekit import rtc
 from livekit.agents.llm import ChatMessage, ChatImage
 
 import json
+import asyncio
 
 load_dotenv(dotenv_path=".env.local")
 logger = logging.getLogger("voice-agent")
@@ -111,6 +112,12 @@ async def entrypoint(ctx: JobContext):
         Callback that runs right before the LLM generates a response.
         Captures the current video frame and adds it to the conversation context.
         """
+
+        # truncate msg to latest 15 msgs to prevent ooms :)
+        if len(chat_ctx.messages) > 15:
+            chat_ctx.messages = chat_ctx.messages[-15:]
+
+
         latest_image = await get_latest_image(ctx.room)
         if latest_image:
             image_content = [ChatImage(image=latest_image)]
@@ -155,17 +162,44 @@ async def entrypoint(ctx: JobContext):
         llm=openai.LLM(model="gpt-4o-mini"),
         tts=openai.TTS(),
         chat_ctx=initial_ctx,
-        before_llm_cb=before_llm_cb
+        before_llm_cb=before_llm_cb,
     )
 
     assistant.start(ctx.room, participant)
 
-    await send_text_to_frontend(ctx, "hii im here")
+    @assistant.on("agent_speech_committed")
+    def on_agent_speech_committed(msg: llm.ChatMessage):
+        # Extract text from the message (ensure it's a string)
+        text = msg.content if isinstance(msg.content, str) else str(msg.content)
+        logger.info(f"Agent response committed: {text}")
+        # Create an async task to send the text to the frontend
+        asyncio.create_task(send_text_to_frontend(ctx, text))
 
-    # The agent should be polite and greet the user when it joins :)
-    await assistant.say("Hey, what would you like to learn today?", allow_interruptions=True)
+
+    # print("ctx", assistant.chat_ctx.messages[-1])
+    # await send_text_to_frontend(ctx, str(assistant.chat_ctx.messages[-1]))
+
+    # # The agent should be polite and greet the user when it joins :)
+    # await assistant.say("Hey, what would you like to learn today?", allow_interruptions=True)
 
     
+    greeting_text = "Hey, what would you like to learn today?"
+    # await asyncio.gather(
+    #     assistant.say(greeting_text, allow_interruptions=True),
+    #     send_text_to_frontend(ctx, greeting_text)
+    # )
+
+    await assistant.say(greeting_text, allow_interruptions=True),
+    await send_text_to_frontend(ctx, greeting_text)
+
+    # Hook into the assistant's chat pipeline to send responses in real time
+    async def on_response(response_text: str):
+        """This function is triggered every time the assistant generates a response"""
+        print(f"Sending AI response to frontend: {response_text}")
+        await send_text_to_frontend(ctx, response_text)
+
+    # Attach the callback to process assistant responses
+    assistant.llm.on_response = on_response
     
 
 

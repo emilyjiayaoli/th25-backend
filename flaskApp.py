@@ -160,7 +160,7 @@ def search():
 You are an AI assistant that helps find relevant files based on a query.
 You are provided with a query and a list of files with their contents.
 Your task is to identify which files are most relevant to the query, and what the answer to the query is
-based on the information in the files as well as your own knowledge.
+based on the information in the files as well as your own knowledge. Score should be between 0 and 1.
 
 ## Query:
 {query}

@@ -65,6 +65,14 @@ def extract_text(filepath: str) -> str:
         text = "Unsupported file type"
     return text
 
+# make txt file
+def make_txt_file(filepath: str, text: str):
+    try:
+        with open(filepath, "w", encoding="utf-8") as file:
+            file.write(text)
+        print(f"File successfully created: {filepath}")
+    except Exception as e:
+        print(f"Error creating file: {e}")
 
 # ================== API Endpoints ==================
 
@@ -84,6 +92,15 @@ def upload_file():
     new_file = File(filename=file.filename, filepath=filepath)
     db.session.add(new_file)
     db.session.commit()
+
+    # If the uploaded file is a PDF, create a text version
+    if file.filename.lower().endswith('.pdf'):
+        txt_filepath = os.path.join(app.config['UPLOAD_FOLDER'], file.filename.rsplit('.', 1)[0] + ".txt")
+        extracted_text = extract_text(filepath)
+
+        # Save extracted text to a .txt file
+        with open(txt_filepath, "w", encoding="utf-8") as txt_file:
+            txt_file.write(extracted_text)
     
     return jsonify({"message": "File uploaded successfully", "filename": file.filename})
 
@@ -122,12 +139,20 @@ def search():
     if not query:
         return jsonify({"error": "Query is required"}), 400
 
-    # Retrieve all uploaded files and extract text from each
-    files = File.query.all()
+    # Retrieve all .txt files in the uploads folder
+    upload_folder = app.config['UPLOAD_FOLDER']
+    txt_files = [f for f in os.listdir(upload_folder) if f.lower().endswith('.txt')]
+
+    # Extract text from each .txt file
     file_texts = []
-    for file in files:
-        text = extract_text(file.filepath)
-        file_texts.append(f"# File: {file.filename}\n{text}\n")
+    for filename in txt_files:
+        filepath = os.path.join(upload_folder, filename)
+        try:
+            with open(filepath, "r", encoding="utf-8") as file:
+                text = file.read()
+            file_texts.append(f"# File: {filename}\n{text}\n")
+        except Exception as e:
+            file_texts.append(f"# File: {filename}\nError reading file: {str(e)}\n")
 
     # Combine all file texts into one string
     combined_text = "\n".join(file_texts)

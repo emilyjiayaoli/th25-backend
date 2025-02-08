@@ -15,6 +15,7 @@ from livekit.plugins import openai, deepgram, silero
 from livekit import rtc
 from livekit.agents.llm import ChatMessage, ChatImage
 
+import json
 
 load_dotenv(dotenv_path=".env.local")
 logger = logging.getLogger("voice-agent")
@@ -34,7 +35,43 @@ async def get_video_track(room: rtc.Room):
                 return track_publication.track
     raise ValueError("No remote video track found in the room")
 
+
+async def send_text_to_frontend(ctx: JobContext, text: str):
+    # Create your message with a type (topic) and content.
+
+    print("Sending text to frontend! in send_text_to_frontend")
+    message = {
+        "type": "whiteboard_update",
+        "content": text,
+    }
+    data_str = json.dumps(message)
+    data_bytes = data_str.encode("utf-8")
+
+    await ctx.room.local_participant.publish_data(
+        payload=data_bytes,
+        reliable=True,
+        topic="whiteboard_update"  # optional topic if needed
+    )
+
+# async def get_screen_share_track(room: rtc.Room):
+#     """Find and return the first available remote screen share video track."""
+#     for participant_id, participant in room.remote_participants.items():
+#         for track_id, publication in participant.track_publications.items():
+#             # Check that the track exists, is a video track, and its source indicates screen share.
+#             if (
+#                 publication.track 
+#                 and isinstance(publication.track, rtc.RemoteVideoTrack)
+#                 and publication.source == rtc.TrackSource.SCREEN_SHARE  # or "screen_share" depending on your SDK version
+#             ):
+#                 logger.info(
+#                     f"Found screen share track {publication.track.sid} from participant {participant_id}"
+#                 )
+#                 return publication.track
+#     raise ValueError("No remote screen share track found in the room")
+
+
 async def get_latest_image(room: rtc.Room):
+    print("get_latest_image!!")
     """Capture and return a single frame from the video track."""
     video_stream = None
     try:
@@ -79,6 +116,8 @@ async def entrypoint(ctx: JobContext):
             image_content = [ChatImage(image=latest_image)]
             chat_ctx.messages.append(ChatMessage(role="user", content=image_content))
             logger.debug("Added latest frame to conversation context")
+            print("chat_ctx", chat_ctx)
+
 
     initial_ctx = llm.ChatContext().append(
     role="system",
@@ -86,9 +125,8 @@ async def entrypoint(ctx: JobContext):
         "You are a voice assistant created by LiveKit that can both see and hear. "
         "You should use short and concise responses, avoiding unpronounceable punctuation. "
         "When you see an image in our conversation, naturally incorporate what you see "
-        "into your response. Keep visual descriptions brief but informative.",
+        "into your response. Keep visual descriptions brief but informative."
         "You are the best teacher. You can teach about anything. adapt to the student's learning style. Be able to break problems down."
-        
     ),
 )
 
@@ -110,6 +148,7 @@ async def entrypoint(ctx: JobContext):
     # Other great providers exist like Cartesia and ElevenLabs
     # Learn more and pick the best one for your app:
     # https://docs.livekit.io/agents/plugins
+
     assistant = VoicePipelineAgent(
         vad=ctx.proc.userdata["vad"],
         stt=deepgram.STT(),
@@ -119,11 +158,15 @@ async def entrypoint(ctx: JobContext):
         before_llm_cb=before_llm_cb
     )
 
-
     assistant.start(ctx.room, participant)
+
+    await send_text_to_frontend(ctx, "hii im here")
 
     # The agent should be polite and greet the user when it joins :)
     await assistant.say("Hey, what would you like to learn today?", allow_interruptions=True)
+
+    
+    
 
 
 if __name__ == "__main__":

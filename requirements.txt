@@ -6,3 +6,6 @@ livekit-plugins-cartesia
 python-dotenv~=1.0
 flask 
 flask-sqlalchemy
+PyPDF2
+pydantic
+openai

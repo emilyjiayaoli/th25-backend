@@ -243,28 +243,81 @@ class AssistantFnc(llm.FunctionContext):
         await send_text_to_frontend(self.ctx, notes)
         # Optionally, return a confirmation message to be included in the LLM's response.
         return f"Notes taken: {notes}"
-        
+    
+
     # @llm.ai_callable()
-    # async def get_weather(
+    # async def search_text(
     #     self,
-    #     # by using the Annotated type, arg description and type are available to the LLM
-    #     location: Annotated[
-    #         str, llm.TypeInfo(description="The location to get the weather for")
-    #     ],
+    #     query: Annotated[
+    #         str, llm.TypeInfo(description="Semantically search what the user uploaded")
+    #     ]
     # ):
-    #     """Called when the user asks about the weather. This function will return the weather for the given location."""
-    #     logger.info(f"getting weather for {location}")
-    #     url = f"https://wttr.in/{location}?format=%C+%t"
-    #     logger.info(f"fetching weather data from {url}")
+    #     """
+    #     Search for relevant files based on the given query.
+
+    #     This endpoint sends a GET request to the local search service and returns a structured JSON response.
+        
+    #     Expected response format:
+    #     {
+    #     "query": "What is the capital of France?",
+    #     "answer": "Paris",
+    #     "relevantFiles": [
+    #         {
+    #         "filename": "file1.txt",
+    #         "matchReason": "Contains the word 'Paris'",
+    #         "score": 0.8
+    #         },
+    #         {
+    #         "filename": "file2.pdf",
+    #         "matchReason": "Contains the phrase 'capital city of France'",
+    #         "score": 0.6
+    #         }
+    #     ]
+    #     }
+    #     """
+    #     logger.info(f"Calling search on query: {query}")
+    #     url = "http://127.0.0.1:5000/search"  # URL of your local search endpoint
+
+    #     # Create a client session to perform the HTTP GET request with the query parameter
     #     async with aiohttp.ClientSession() as session:
-    #         async with session.get(url) as response:
+    #         async with session.get(url, params={"query": query}) as response:
     #             if response.status == 200:
-    #                 weather_data = await response.text()
-    #                 # response from the function call is returned to the LLM
-    #                 # as a tool response. The LLM's response will include this data
-    #                 return f"The weather in {location} is {weather_data}."
+    #                 # Assuming the search service returns JSON in the desired format
+    #                 result = await response.json()
+    #                 logger.info("Search successful")
+    #                 if "answer" in result:
+    #                     logger.log(f"Recorded the following answer {result["answer"]}")
+    #                     return result["answer"]
+    #                 else:
+    #                     return ""
     #             else:
-    #                 raise f"Failed to get weather data, status code: {response.status}"
+    #                 error_text = await response.text()
+    #                 logger.error(f"Search request failed with status {response.status}: {error_text}")
+    #                 # Optionally, you can raise an error here or return a structured error response
+    #                 return {"error": f"Search request failed: {error_text}"}
+            
+        
+    @llm.ai_callable()
+    async def get_weather(
+        self,
+        # by using the Annotated type, arg description and type are available to the LLM
+        location: Annotated[
+            str, llm.TypeInfo(description="The location to get the weather for")
+        ],
+    ):
+        """Called when the user asks about the weather. This function will return the weather for the given location."""
+        logger.info(f"getting weather for {location}")
+        url = f"https://wttr.in/{location}?format=%C+%t"
+        logger.info(f"fetching weather data from {url}")
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    weather_data = await response.text()
+                    # response from the function call is returned to the LLM
+                    # as a tool response. The LLM's response will include this data
+                    return f"The weather in {location} is {weather_data}."
+                else:
+                    raise f"Failed to get weather data, status code: {response.status}"
 
 if __name__ == "__main__":
     cli.run_app(

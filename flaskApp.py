@@ -6,7 +6,10 @@ from datetime import datetime
 import PyPDF2
 from pydantic import BaseModel
 from openai import OpenAI
+from dotenv import load_dotenv
 
+
+load_dotenv(dotenv_path=".env.local")
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
 
@@ -184,6 +187,7 @@ based on the information in the files as well as your own knowledge. Score shoul
     # Get the parsed structured output
     structured_response = completion.choices[0].message.parsed
 
+    print("structured_response", structured_response)
     return jsonify(structured_response.dict())
 
 @app.route('/files', methods=['GET'])

@@ -1,6 +1,7 @@
-<a href="https://livekit.io/">
-  <img src="./.github/assets/livekit-mark.png" alt="LiveKit logo" width="100" height="100">
-</a>
+# SimpliLearn
+Carnegie Mellon University TartanHacks 2025
+
+by Emily Li, Evelynn Chen, Yee Kit Chan, & Anthony Bustamante
 
 # Python Voice Agent
 
